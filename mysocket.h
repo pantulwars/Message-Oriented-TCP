@@ -17,26 +17,23 @@
 // pthread_t R, S;
 typedef struct
 {
+    int flags;
     char msg_body[5000];
     ssize_t len;
-    int flags;
-
-} message;
+}message;
 typedef struct
 {
     int size;
     int next_to_use;
     message *arr;
-} table;
+}table;
 
 void init_Send_Message(table *Send_Message, int s);
-int add_to_Send_Message(table *Send_Message, message *msg);
 void remove_from_Send_Message(table *Send_Message, int indx);
 void init_Received_Message(table *Received_Message, int s);
-int add_to_eceived_Message(table *Received_Message, message *msg);
 void remove_from_Received_Message(table *Received_Message, int indx);
-void *run_thread_r(void *param);
-void *run_thread_s(void *param);
+void* run_thread_r(void *param);
+void* run_thread_s(void *param);
 
 int my_socket(int domain, int type, int protocol);
 int my_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);

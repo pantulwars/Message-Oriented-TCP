@@ -1,0 +1,91 @@
+--------------------Data structures used--------------------
+
+We have used two structures "message" for the message sent and received and other structure is "table" which is used to create the Send_Message and 
+Received_Message table.
+
+-----Description of the data structures-----
+
+1) "message":
+
+    ////////////////////////
+    typedef struct
+    {
+        char msg_body[5000];
+        ssize_t len;
+        int flags;
+
+    } message;
+    ////////////////////////
+
+    a) This structures contains a character array to store the message the size of this array is 5000 ( as given in the question ).
+    b) It contains a vairable len of type ssize_t, it stores the length of the message.
+    c) Other variable used is flags, it represents the flags that are used while sending/receiving this message.
+
+2) "table":
+
+    ////////////////////
+    typedef struct
+    {
+        int size;
+        int next_to_use;
+        message *arr;
+    } table;
+    ////////////////////
+
+    a) This structure contains a array of type messages, that is this table stores the messages in Received_Message and Send_Message table as per the description.
+    b) It contains a vairable size which shows the number of messages present in the table.
+    c) It also contains a variable next_to_use which gives the next slot that should be used in the table.
+
+-----Functions and their description in mysocket.c-----
+
+Design and Workflow:
+
+my_send() call:
+- The my_send() function and the send thread behave like a producer and consumer.
+- When my_send is called, it conditionally waits (using pthread_cond_wait()) till the Send_Message table is free (not full),
+- if found free, the my_send() pushes the message, along with flags and message length to the Send_Message table
+- after message is added a signal is sent on the conditional variable (waited on by the send_thread) (through pthread_cont_signal())
+
+
+send thread (S):
+- The send_thread conditionally waits until the Send_Message table is non-empty
+- Once a message is found, it is copied to a separate buffer and the mutex-lock on the Send_Message table is released
+- this is done to ensure parallelism, i.e, the my_send() does not wait for the thread to finish executing, 
+- and may proceed to add another entry to the table if called again.
+
+my_recv() call:
+- Similarly the recv_thread (R) and main thread executing my_recv behave as producer and consumer
+- my_recv() conditionally waits until recv_thread adds a message to the Received_Message table
+- It also waits for the return value from the thread, through a shared variable
+- mutex-locks are used between the shared resourses of the two threads (main and R).
+
+recv thread (R):
+- it waits for a cue from the my_recv function, if cue is received (by setting of sockfd) it proceeds 
+- to conditionally wait until the Received_Message table is free, 
+- if table is available, the message is pushed to the table
+
+1) void init_Send_Message(table *Send_Message, int s);:
+    Initialises the Send_Message table, i.e creates a array of messages of size s and initialises values for other variables.
+2) int add_to_Send_Message(table *Send_Message, message *msg);
+    Adds a message to Send_Message table.
+3) void remove_from_Send_Message(table *Send_Message, int indx);
+    Removes a message from Send_Message table. The message at indx position is removed and all messages after it are moved up.
+4) void init_Received_Message(table *Received_Message, int s);
+    Initialises the Received_Message table, i.e creates a array of messages of size s and initialises values for other variables.
+5) int add_to_eceived_Message(table *Received_Message, message *msg);
+    Adds a message to Received_Message table.
+6) void remove_from_Received_Message(table *Received_Message, int indx);
+    Removes a message from Received_Message table. The message at indx position is removed and all messages after it are moved up.
+7) void *run_thread_r(void *param);
+    When R thread is created it runs from this function.
+8) void *run_thread_s(void *param);
+    When S thread is created it runs from this function.
+14) ssize_t my_send(int sockfd, const void *buf, size_t len, int flags);
+    Sends a message (see description later). One message is defined as what is 
+    sent in one my_send call. 
+15) ssize_t my_recv(int sockfd, void *buf, size_t len, int flags);
+    receives  a  message.  This  is  a  blocking  call  and  will  return  only  if  a  
+    message, sent using the my_send call, is received. If the buffer length specified is less 
+    than the message length, the extra bytes in the message are discarded (similar to that 
+    in UDP).
+
